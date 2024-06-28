@@ -75,9 +75,11 @@ _cert_locks = []
 # find clone-cert.sh executable
 CLONE_CERT = None
 SCRIPT_PATH = os.path.dirname(__file__)
+#print("here = " + SCRIPT_PATH)
 for p in ['clone-cert.sh',
           os.path.join(SCRIPT_PATH, 'bin/clone-cert.sh'),
           os.path.join(SCRIPT_PATH, '../bin/clone-cert.sh')]:
+    #print("p = " + p)
     if shutil.which(p):
         CLONE_CERT = p
         break
@@ -457,12 +459,16 @@ def _run_steps(steps, netns_name, devname, subnet, ignore_errors=False):
 
 def _original_dst(conn):
     '''Find original destination of an incoming connection'''
-    original_dst = conn.getsockopt(socket.SOL_IP, _SO_ORIGINAL_DST, 16)
-    original_srv_port, original_srv_ip = struct.unpack("!2xH4s8x",
+    try:
+        original_dst = conn.getsockopt(socket.SOL_IP, _SO_ORIGINAL_DST, 16)
+        original_srv_port, original_srv_ip = struct.unpack("!2xH4s8x",
                                                        original_dst)
-    original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
-    return original_srv_ip, original_srv_port
-
+        original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
+        return original_srv_ip, original_srv_port
+    except Exception as e:
+        print(str(e))
+        return "", ""
+    
 
 def _open_connection(ip, port, netns_name=None):
     '''Open a connection to the original destination'''
