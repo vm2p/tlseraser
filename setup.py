@@ -18,7 +18,7 @@ setuptools.setup(
         'tlseraser/flipper.py',
     ],
     package_data={
-        'tlseraser': ['*.pem'],
+        'tlseraser': ['*.pem', 'clone-cert.sh'],
     },
     install_requires=['netns'],
     entry_points={

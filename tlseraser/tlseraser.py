@@ -75,11 +75,13 @@ _cert_locks = []
 # find clone-cert.sh executable
 CLONE_CERT = None
 SCRIPT_PATH = os.path.dirname(__file__)
-#print("here = " + SCRIPT_PATH)
+print('cwd = ' + os.getcwd())
+print("here = " + SCRIPT_PATH)
 for p in ['clone-cert.sh',
+          os.path.join(SCRIPT_PATH, 'clone-cert.sh'),
           os.path.join(SCRIPT_PATH, 'bin/clone-cert.sh'),
           os.path.join(SCRIPT_PATH, '../bin/clone-cert.sh')]:
-    #print("p = " + p)
+    print("p = " + p)
     if shutil.which(p):
         CLONE_CERT = p
         break
@@ -346,7 +348,7 @@ class Forwarder(threading.Thread):
         if not (keyfile and certfile):
             certfile, keyfile = self.fallback_cert()
         release_cert_lock(lock)
-        context = ssl.SSLContext()
+        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
         try:
             context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         except ssl.SSLError:
@@ -410,7 +412,7 @@ class Forwarder(threading.Thread):
 
     def tlsify_client(self, conn):
         '''Wrap an outgoing connection inside TLS'''
-        context = ssl.SSLContext()
+        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
         return context.wrap_socket(
             conn,
             do_handshake_on_connect=False,
@@ -431,10 +433,12 @@ class Forwarder(threading.Thread):
                     "TLSV1_ALERT_UNKNOWN_CA",
                     "SSLV3_ALERT_BAD_CERTIFICATE",
                 ]:
+                    log.error(err.reason)
                     log.error("[%s] Client does not trust our cert" %
                               self.id)
                     return False
                 else:
+                    #log.error(err.reason)
                     raise
         return True
 
@@ -458,16 +462,26 @@ def _run_steps(steps, netns_name, devname, subnet, ignore_errors=False):
 
 
 def _original_dst(conn):
+    original_srv_ip, original_srv_port = conn.getsockname()
+    #original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
+    return original_srv_ip, original_srv_port
+
+
+""" def _original_dst(conn):
     '''Find original destination of an incoming connection'''
-    try:
-        original_dst = conn.getsockopt(socket.SOL_IP, _SO_ORIGINAL_DST, 16)
-        original_srv_port, original_srv_ip = struct.unpack("!2xH4s8x",
-                                                       original_dst)
-        original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
-        return original_srv_ip, original_srv_port
-    except Exception as e:
-        print(str(e))
-        return "", ""
+    #try:
+    print(str(type(conn)))
+    print(conn.getsockname())
+    print(conn.getpeername())
+    print(conn.proto)
+    original_dst = conn.getsockopt(socket.SOL_IP, _SO_ORIGINAL_DST, 16)
+    original_srv_port, original_srv_ip = struct.unpack("!2xH4s8x",
+                                                   original_dst)
+    original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
+    return original_srv_ip, original_srv_port
+    #except Exception as e:
+    #    print(str(e))
+    #    return "", "" """
     
 
 def _open_connection(ip, port, netns_name=None):
@@ -504,8 +518,12 @@ class TLSEraser(object):
         self.erase_tls = erase_tls
         self.forwarder = forwarder
         if target:
-            target = target.split(':')
-            self.target = (target[0], int(target[1]))
+            if (target[0:4] == 'http'):
+                target = target.split(':')
+                self.target = (target[0] + ':' + target[1], int(target[2]))
+            else:
+                target = target.split(':')
+                self.target = (target[0], int(target[1]))
         else:
             self.target = None
 
