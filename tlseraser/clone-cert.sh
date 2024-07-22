@@ -484,7 +484,7 @@ function clone_cert () {
         | sed "s/$OLD_ASN1_SIG/$NEW_ASN1_SIG/" \
         | sed "s/^\(....\)$OLD_CERT_LENGTH/\1$NEW_CERT_LENGTH/" \
         | unhexlify \
-        | openssl x509 -inform DER -outform PEM > "$CLONED_CERT"
+        | openssl x509 -inform DER -outform CRT > "$CLONED_CERT"
 
     if [ ! -s "$CLONED_CERT" ] ; then
         echo "Cloning failed" >&2

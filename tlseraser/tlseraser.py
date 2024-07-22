@@ -348,7 +348,12 @@ class Forwarder(threading.Thread):
         if not (keyfile and certfile):
             certfile, keyfile = self.fallback_cert()
         release_cert_lock(lock)
-        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
+        #context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context = ssl.SSLContext()
+        context.minimum_version = ssl.TLSVersion.SSLv3
+        context.maximum_version = ssl.TLSVersion.TLSv1_3
+        print(SCRIPT_PATH)
+        context.load_verify_locations = SCRIPT_PATH
         try:
             context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         except ssl.SSLError:
@@ -362,7 +367,7 @@ class Forwarder(threading.Thread):
     def fallback_cert(self):
         path = os.path.dirname(os.path.realpath(__file__))
         keyfile = os.path.join(path, 'key.pem')
-        certfile = os.path.join(path, 'cert.pem')
+        certfile = os.path.join(path, 'cert.crt')
         log.warning("[%s] Use fallback certificate" % self.id)
         return certfile, keyfile
 
@@ -412,7 +417,12 @@ class Forwarder(threading.Thread):
 
     def tlsify_client(self, conn):
         '''Wrap an outgoing connection inside TLS'''
-        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
+        #context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context = ssl.SSLContext()
+        context.minimum_version = ssl.TLSVersion.SSLv3
+        context.maximum_version = ssl.TLSVersion.TLSv1_3
+        print(SCRIPT_PATH)
+        context.load_verify_locations = SCRIPT_PATH
         return context.wrap_socket(
             conn,
             do_handshake_on_connect=False,
