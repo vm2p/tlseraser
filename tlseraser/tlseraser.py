@@ -75,13 +75,10 @@ _cert_locks = []
 # find clone-cert.sh executable
 CLONE_CERT = None
 SCRIPT_PATH = os.path.dirname(__file__)
-print('cwd = ' + os.getcwd())
-print("here = " + SCRIPT_PATH)
 for p in ['clone-cert.sh',
-          os.path.join(SCRIPT_PATH, 'clone-cert.sh'),
+	  os.path.join(SCRIPT_PATH, 'clone-cert.sh'),
           os.path.join(SCRIPT_PATH, 'bin/clone-cert.sh'),
           os.path.join(SCRIPT_PATH, '../bin/clone-cert.sh')]:
-    print("p = " + p)
     if shutil.which(p):
         CLONE_CERT = p
         break
@@ -348,12 +345,8 @@ class Forwarder(threading.Thread):
         if not (keyfile and certfile):
             certfile, keyfile = self.fallback_cert()
         release_cert_lock(lock)
-        #context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context = ssl.SSLContext()
-        context.minimum_version = ssl.TLSVersion.SSLv3
-        context.maximum_version = ssl.TLSVersion.TLSv1_3
-        print(SCRIPT_PATH)
-        context.load_verify_locations = SCRIPT_PATH
+        #context.set_ciphers('ALL:@SECLEVEL=0')
         try:
             context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         except ssl.SSLError:
@@ -367,7 +360,7 @@ class Forwarder(threading.Thread):
     def fallback_cert(self):
         path = os.path.dirname(os.path.realpath(__file__))
         keyfile = os.path.join(path, 'key.pem')
-        certfile = os.path.join(path, 'cert.crt')
+        certfile = os.path.join(path, 'cert.pem')
         log.warning("[%s] Use fallback certificate" % self.id)
         return certfile, keyfile
 
@@ -417,12 +410,8 @@ class Forwarder(threading.Thread):
 
     def tlsify_client(self, conn):
         '''Wrap an outgoing connection inside TLS'''
-        #context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context = ssl.SSLContext()
-        context.minimum_version = ssl.TLSVersion.SSLv3
-        context.maximum_version = ssl.TLSVersion.TLSv1_3
-        print(SCRIPT_PATH)
-        context.load_verify_locations = SCRIPT_PATH
+        #context.set_ciphers('ALL:@SECLEVEL=0')
         return context.wrap_socket(
             conn,
             do_handshake_on_connect=False,
@@ -443,12 +432,10 @@ class Forwarder(threading.Thread):
                     "TLSV1_ALERT_UNKNOWN_CA",
                     "SSLV3_ALERT_BAD_CERTIFICATE",
                 ]:
-                    log.error(err.reason)
                     log.error("[%s] Client does not trust our cert" %
                               self.id)
                     return False
                 else:
-                    #log.error(err.reason)
                     raise
         return True
 
@@ -472,27 +459,19 @@ def _run_steps(steps, netns_name, devname, subnet, ignore_errors=False):
 
 
 def _original_dst(conn):
+    '''Find original destination of an incoming connection'''
     original_srv_ip, original_srv_port = conn.getsockname()
     #original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
     return original_srv_ip, original_srv_port
 
+#def _original_dst(conn):
+#    '''Find original destination of an incoming connection'''
+#    original_dst = conn.getsockopt(socket.SOL_IP, _SO_ORIGINAL_DST, 16)
+#    original_srv_port, original_srv_ip = struct.unpack("!2xH4s8x",
+#                                                       original_dst)
+#    original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
+#    return original_srv_ip, original_srv_port
 
-""" def _original_dst(conn):
-    '''Find original destination of an incoming connection'''
-    #try:
-    print(str(type(conn)))
-    print(conn.getsockname())
-    print(conn.getpeername())
-    print(conn.proto)
-    original_dst = conn.getsockopt(socket.SOL_IP, _SO_ORIGINAL_DST, 16)
-    original_srv_port, original_srv_ip = struct.unpack("!2xH4s8x",
-                                                   original_dst)
-    original_srv_ip = "%d.%d.%d.%d" % (*original_srv_ip,)
-    return original_srv_ip, original_srv_port
-    #except Exception as e:
-    #    print(str(e))
-    #    return "", "" """
-    
 
 def _open_connection(ip, port, netns_name=None):
     '''Open a connection to the original destination'''
@@ -528,12 +507,8 @@ class TLSEraser(object):
         self.erase_tls = erase_tls
         self.forwarder = forwarder
         if target:
-            if (target[0:4] == 'http'):
-                target = target.split(':')
-                self.target = (target[0] + ':' + target[1], int(target[2]))
-            else:
-                target = target.split(':')
-                self.target = (target[0], int(target[1]))
+            target = target.split(':')
+            self.target = (target[0], int(target[1]))
         else:
             self.target = None
 
