@@ -75,11 +75,14 @@ _cert_locks = []
 # find clone-cert.sh executable
 CLONE_CERT = None
 SCRIPT_PATH = os.path.dirname(__file__)
+print(SCRIPT_PATH)
+
 for p in ['clone-cert.sh',
 	  os.path.join(SCRIPT_PATH, 'clone-cert.sh'),
           os.path.join(SCRIPT_PATH, 'bin/clone-cert.sh'),
           os.path.join(SCRIPT_PATH, '../bin/clone-cert.sh')]:
     if shutil.which(p):
+        print('p = ' + p)
         CLONE_CERT = p
         break
 if not CLONE_CERT:
@@ -226,6 +229,8 @@ class Forwarder(threading.Thread):
         return data
 
     def buffer_data(self, sock, data):
+        log.info('type socket = ' + str(type(sock)) + ' type data = ' + str(type(data)))
+        log.info('socket = ' + str(sock) + ' data = ' + str(data))
         if data:
             self.buffer[self.peer[sock]] += data
             if self.tamper(self.peer[sock]):
@@ -234,6 +239,7 @@ class Forwarder(threading.Thread):
             self.disconnect(sock)
 
     def write_from_buffer(self, sock):
+        log.info('write_from_buffer socket = ' + str(sock))
         try:
             if self.buffer[sock]:
                 c = sock.send(self.buffer[sock])
@@ -244,6 +250,7 @@ class Forwarder(threading.Thread):
     def read_from_sock(self, s):
         '''Read data from a socket to a buffer'''
         #  log.debug("reading")
+        log.info('socket = ' + str(s))
         try:
             if self.should_starttls(s):
                 self.starttls()
@@ -311,6 +318,7 @@ class Forwarder(threading.Thread):
                 length = struct.unpack("!H", firstbytes[3:5])[0]
                 tls_client_hello = sock.recv(5+length, socket.MSG_PEEK)
                 self.sni = get_sni(tls_client_hello)
+                print('SNI = ' + self.sni)
                 log.info("[%s] SNI: %s" % (self.id, self.sni))
             return result
         except ValueError:
@@ -348,8 +356,10 @@ class Forwarder(threading.Thread):
         context = ssl.SSLContext()
         #context.set_ciphers('ALL:@SECLEVEL=0')
         try:
+            #certfile, keyfile = self.fallback_cert()
             context.load_cert_chain(certfile=certfile, keyfile=keyfile)
-        except ssl.SSLError:
+        except ssl.SSLError as e:
+            print('exception = ' + e)
             certfile, keyfile = self.fallback_cert()
             context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         return context.wrap_socket(conn,

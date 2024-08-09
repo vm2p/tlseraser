@@ -173,12 +173,12 @@ function generate_rsa_key () {
         cp "$DIR/RSA_$KEY_LEN" "$MY_PRIV_KEY"
     else
         debug "Generating RSA key"
-        openssl genrsa -out "$MY_PRIV_KEY" "$KEY_LEN" 2> /dev/null
+        /home/vm2p/Desktop/openssl/build/bin/openssl genrsa -out "$MY_PRIV_KEY" "$KEY_LEN" 2> /dev/null
         cp "$MY_PRIV_KEY" "$DIR/RSA_$KEY_LEN"
     fi
 
-    NEW_MODULUS="$(openssl rsa -in "$MY_PRIV_KEY" -pubout 2> /dev/null \
-        | openssl rsa -pubin -noout -modulus \
+    NEW_MODULUS="$(/home/vm2p/Desktop/openssl/build/bin/openssl rsa -in "$MY_PRIV_KEY" -pubout 2> /dev/null \
+        | /home/vm2p/Desktop/openssl/build/bin/openssl rsa -pubin -noout -modulus \
         | sed 's/Modulus=//' | tr "[:upper:]" "[:lower:]" )"
     printf "%s" "$NEW_MODULUS"
 }
@@ -193,15 +193,15 @@ function generate_ec_key () {
         cp "$DIR/EC" "$MY_PRIV_KEY"
     else
         debug "Generating EC key"
-        openssl ecparam -name $EC_PARAM_NAME -genkey -out "$MY_PRIV_KEY" 2> /dev/null
+        /home/vm2p/Desktop/openssl/build/bin/openssl ecparam -name $EC_PARAM_NAME -genkey -out "$MY_PRIV_KEY" 2> /dev/null
         cp "$MY_PRIV_KEY" "$DIR/EC"
     fi
 
-    offset="$(openssl ec -in "$MY_PRIV_KEY" 2> /dev/null \
-        | openssl asn1parse \
+    offset="$(/home/vm2p/Desktop/openssl/build/bin/openssl ec -in "$MY_PRIV_KEY" 2> /dev/null \
+        | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse \
         | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/')"
-    NEW_MODULUS="$(openssl ec -in "$MY_PRIV_KEY" 2> /dev/null \
-        | openssl asn1parse -offset $offset -noout \
+    NEW_MODULUS="$(/home/vm2p/Desktop/openssl/build/bin/openssl ec -in "$MY_PRIV_KEY" 2> /dev/null \
+        | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -offset $offset -noout \
             -out >(dd bs=1 skip=2 2> /dev/null | hexlify))"
 
     printf "%s" "$NEW_MODULUS"
@@ -304,13 +304,13 @@ function asn1-bitstring(){
 
 function extract-values () {
     # extract all the values we need from the original cert
-    SUBJECT="$(openssl x509 -in "$CERT" -noout -subject \
+    SUBJECT="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -noout -subject \
         | sed 's/.* CN = //g')"
-    ISSUER="$(openssl x509 -in "$CERT" -noout -issuer \
+    ISSUER="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -noout -issuer \
         | sed 's/.* CN = //g')"
-    ISSUER_DN="$(openssl x509 -in "$CERT" -noout -issuer -nameopt compat \
+    ISSUER_DN="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -noout -issuer -nameopt compat \
         | sed 's/^issuer=//')"
-    SUBJECT_DN="$(openssl x509 -in "$CERT" -noout -subject -nameopt compat \
+    SUBJECT_DN="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -noout -subject -nameopt compat \
         | sed 's/^subject=//')"
 
     if [[ ! $ISSUER_DN =~ ^/ ]] ; then # openssl < 1.1.1
@@ -323,10 +323,10 @@ function extract-values () {
     [[ $ISSUER_DN = $SUBJECT_DN ]] && SELF_SIGNED=true
     debug "self-signed: $SELF_SIGNED"
 
-    SERIAL="$(openssl x509 -in "$CERT" -noout -serial \
+    SERIAL="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -noout -serial \
         | sed 's/serial=//g' | tr '[A-F]' '[a-f]')"
 
-    AUTH_KEY_IDENTIFIER="$(openssl asn1parse -in "$CERT" \
+    AUTH_KEY_IDENTIFIER="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         | grep -A1 ":X509v3 Authority Key Identifier" | tail -n1 \
         | sed 's/.*\[HEX DUMP\]://' \
         | sed 's/^.\{8\}//')"
@@ -334,9 +334,9 @@ function extract-values () {
 }
 
 function create-fake-CA () {
-    openssl req -x509 -new -nodes -days 1024 -sha256 \
+    /home/vm2p/Desktop/openssl/build/bin/openssl req -x509 -new -nodes -days 1024 -sha256 \
         -subj "$NEW_ISSUER_DN" \
-        -config <(cat /etc/ssl/openssl.cnf |sed "s/.*subjectKeyIdentifier.*=.*hash/subjectKeyIdentifier=$AUTH_KEY_IDENTIFIER/") \
+        -config <(cat /home/vm2p/Desktop/openssl/build/ssl/openssl.cnf |sed "s/.*subjectKeyIdentifier.*=.*hash/subjectKeyIdentifier=$AUTH_KEY_IDENTIFIER/") \
         $@ \
         -out "$FAKE_ISSUER_CERT" 2> /dev/null
 }
@@ -364,7 +364,7 @@ function clone_cert () {
         fi
         # avoid negative serial number
         # only change 16 hex digits in the middle
-        NEW_SERIAL=$(openssl rand -hex 8)
+        NEW_SERIAL=$(/home/vm2p/Desktop/openssl/build/bin/openssl rand -hex 8)
         NEW_SERIAL=$(printf "%s" "$SERIAL" | sed "s/.\{16\}\(.\{4\}\)\$/$NEW_SERIAL\1/")
     else
         NEW_ISSUER=$ISSUER
@@ -379,18 +379,18 @@ function clone_cert () {
     FAKE_ISSUER_CERT="${CERT}.CA.cert"
 
 
-    OLD_MODULUS="$(openssl x509 -in "$CERT" -modulus -noout \
+    OLD_MODULUS="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -modulus -noout \
         | sed -e 's/Modulus=//' | tr "[:upper:]" "[:lower:]")"
     if [[ $OLD_MODULUS = "wrong algorithm type" ]] ; then
         # it's EC and not RSA (or maybe DSA...)
         SCHEME=ec
-        offset="$(openssl x509 -in "$CERT" -pubkey -noout 2> /dev/null \
-            | openssl asn1parse \
+        offset="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -pubkey -noout 2> /dev/null \
+            | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse \
             | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/')"
-        OLD_MODULUS="$(openssl x509 -in "$CERT" -pubkey -noout 2> /dev/null \
-            | openssl asn1parse -offset $offset -noout \
+        OLD_MODULUS="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -pubkey -noout 2> /dev/null \
+            | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -offset $offset -noout \
                 -out >(dd bs=1 skip=2 2> /dev/null | hexlify))"
-        EC_OID="$(openssl x509 -in "$CERT" -text -noout \
+        EC_OID="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -text -noout \
             | grep "ASN1 OID: " | sed 's/.*: //')"
         NEW_MODULUS="$(generate_ec_key "$EC_OID" "$CLONED_KEY")"
         if [[ $SELF_SIGNED = true ]] ; then
@@ -407,7 +407,7 @@ function clone_cert () {
     else
         SCHEME=rsa
         # get the key length of the public key
-        KEY_LEN="$(openssl x509  -in "$CERT" -noout -text \
+        KEY_LEN="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509  -in "$CERT" -noout -text \
             | grep Public-Key: | grep -o "[0-9]\+")"
         NEW_MODULUS="$(generate_rsa_key "$KEY_LEN" "$CLONED_KEY")"
         if [[ $SELF_SIGNED = true ]] ; then
@@ -427,10 +427,10 @@ function clone_cert () {
         # sign it regularly with given cert
         FAKE_ISSUER_KEY="$ISSUER_KEY"
         FAKE_ISSUER_CERT="$ISSUER_CERT"
-        openssl x509 -in "$CERT" -outform DER | hexlify \
+        /home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -outform DER | hexlify \
             | sed "s/$OLD_MODULUS/$NEW_MODULUS/" \
             | unhexlify \
-            | openssl x509 -days 356 -inform DER -CAkey "$ISSUER_KEY" \
+            | /home/vm2p/Desktop/openssl/build/bin/openssl x509 -days 356 -inform DER -CAkey "$ISSUER_KEY" \
                 -CA "$ISSUER_CERT" -CAcreateserial \
                 -out "$CLONED_CERT"  2> /dev/null
         return-result
@@ -442,15 +442,15 @@ function clone_cert () {
 
 
     # extract old signature
-    offset="$(openssl asn1parse -in "$CERT" | grep SEQUENCE \
+    offset="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" | grep SEQUENCE \
         | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/' | head -n1)"
-    SIGNING_ALGO="$(openssl asn1parse -in "$CERT" \
+    SIGNING_ALGO="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         -strparse $offset -noout -out >(hexlify))"
-    offset="$(openssl asn1parse -in "$CERT" \
+    offset="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/' | head -n1)"
-    OLD_SIGNATURE="$(openssl asn1parse -in "$CERT" \
+    OLD_SIGNATURE="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         -strparse $offset -noout -out >(hexlify))"
-    OLD_TBS_CERTIFICATE="$(openssl asn1parse -in "$CERT" \
+    OLD_TBS_CERTIFICATE="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         -strparse 4 -noout -out >(hexlify))"
 
     # create new signature
@@ -461,14 +461,14 @@ function clone_cert () {
 
     digest="$(oid "$SIGNING_ALGO")"
     NEW_SIGNATURE="$(printf "%s" "$NEW_TBS_CERTIFICATE" | unhexlify \
-        | openssl $digest -sign "$FAKE_ISSUER_KEY" \
+        | /home/vm2p/Desktop/openssl/build/bin/openssl $digest -sign "$FAKE_ISSUER_KEY" \
         | hexlify)"
 
     # replace signature, compute new asn1 length
     OLD_ASN1_SIG=$(asn1-bitstring $OLD_SIGNATURE)
     NEW_ASN1_SIG=$(asn1-bitstring $NEW_SIGNATURE)
 
-    OLD_CERT_LENGTH="$(openssl x509 -in "$CERT" -outform der \
+    OLD_CERT_LENGTH="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -outform der \
         | dd bs=2 skip=1 count=1 2> /dev/null | hexlify)"
     OLD_CERT_LENGTH=$((16#$OLD_CERT_LENGTH))
     NEW_CERT_LENGTH=$((OLD_CERT_LENGTH \
@@ -477,14 +477,14 @@ function clone_cert () {
     OLD_CERT_LENGTH="$(printf "%04x" $OLD_CERT_LENGTH)"
     NEW_CERT_LENGTH="$(printf "%04x" $NEW_CERT_LENGTH)"
 
-    openssl x509 -in "$CERT" -outform DER | hexlify \
+    /home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -outform DER | hexlify \
         | sed "s/$OLD_MODULUS/$NEW_MODULUS/" \
         | sed "s/$ISSUER/$NEW_ISSUER/" \
         | sed "s/$SERIAL/$NEW_SERIAL/" \
         | sed "s/$OLD_ASN1_SIG/$NEW_ASN1_SIG/" \
         | sed "s/^\(....\)$OLD_CERT_LENGTH/\1$NEW_CERT_LENGTH/" \
         | unhexlify \
-        | openssl x509 -inform DER -outform PEM > "$CLONED_CERT"
+        | /home/vm2p/Desktop/openssl/build/bin/openssl x509 -inform DER -outform PEM > "$CLONED_CERT"
 
     if [ ! -s "$CLONED_CERT" ] ; then
         echo "Cloning failed" >&2
@@ -505,12 +505,12 @@ function return-result () {
 function sanity-check () {
     # check whether the key pair matches, and whether the cert validates
     debug "$(diff \
-        <(openssl x509 -noout -text -in $CLONED_CERT) \
-        <(openssl x509 -noout -text -in $CERT))"
-    diff -q <(openssl x509 -in "$CLONED_CERT" -pubkey -noout 2> /dev/null ) \
-        <(openssl $SCHEME -in "$CLONED_KEY" -pubout 2> /dev/null) \
+        <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -noout -text -in $CLONED_CERT) \
+        <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -noout -text -in $CERT))"
+    diff -q <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CLONED_CERT" -pubkey -noout 2> /dev/null ) \
+        <(/home/vm2p/Desktop/openssl/build/bin/openssl $SCHEME -in "$CLONED_KEY" -pubout 2> /dev/null) \
         || ( echo Key mismatch, probably due to a bug >&2; return 1 )
-    openssl verify -CAfile "$FAKE_ISSUER_CERT" "$CLONED_CERT" > /dev/null \
+    /home/vm2p/Desktop/openssl/build/bin/openssl verify -CAfile "$FAKE_ISSUER_CERT" "$CLONED_CERT" > /dev/null \
         || ( echo Verification failed, probably due to a bug >&2; return 1 )
 }
 
@@ -519,7 +519,7 @@ function main () {
         clone_cert "$HOST"
     else
         # save all certificates in chain
-        openssl s_client -servername "$SNI" \
+        /home/vm2p/Desktop/openssl/build/bin/openssl s_client -servername "$SNI" \
             -verify 5 \
             -showcerts -connect "$HOST" < /dev/null 2>/dev/null | \
              parse_certs
