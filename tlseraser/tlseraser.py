@@ -75,14 +75,14 @@ _cert_locks = []
 # find clone-cert.sh executable
 CLONE_CERT = None
 SCRIPT_PATH = os.path.dirname(__file__)
-print(SCRIPT_PATH)
+#print(SCRIPT_PATH)
 
 for p in ['clone-cert.sh',
 	  os.path.join(SCRIPT_PATH, 'clone-cert.sh'),
           os.path.join(SCRIPT_PATH, 'bin/clone-cert.sh'),
           os.path.join(SCRIPT_PATH, '../bin/clone-cert.sh')]:
     if shutil.which(p):
-        print('p = ' + p)
+        #print('p = ' + p)
         CLONE_CERT = p
         break
 if not CLONE_CERT:
@@ -229,8 +229,8 @@ class Forwarder(threading.Thread):
         return data
 
     def buffer_data(self, sock, data):
-        log.info('type socket = ' + str(type(sock)) + ' type data = ' + str(type(data)))
-        log.info('socket = ' + str(sock) + ' data = ' + str(data))
+        #log.info('type socket = ' + str(type(sock)) + ' type data = ' + str(type(data)))
+        #log.info('socket = ' + str(sock) + ' data = ' + str(data))
         if data:
             self.buffer[self.peer[sock]] += data
             if self.tamper(self.peer[sock]):
@@ -239,7 +239,7 @@ class Forwarder(threading.Thread):
             self.disconnect(sock)
 
     def write_from_buffer(self, sock):
-        log.info('write_from_buffer socket = ' + str(sock))
+        #log.info('write_from_buffer socket = ' + str(sock))
         try:
             if self.buffer[sock]:
                 c = sock.send(self.buffer[sock])
@@ -250,7 +250,7 @@ class Forwarder(threading.Thread):
     def read_from_sock(self, s):
         '''Read data from a socket to a buffer'''
         #  log.debug("reading")
-        log.info('socket = ' + str(s))
+        #log.info('socket = ' + str(s))
         try:
             if self.should_starttls(s):
                 self.starttls()
@@ -266,6 +266,7 @@ class Forwarder(threading.Thread):
                 log.error(
                     "[%s] Client does not trust our cert (while reading)"
                     % self.id)
+                log.debug('error = ' + err.reason)
             else:
                 log.exception("[%s] Exception while reading" % self.id)
             self.disconnect(s)
@@ -318,7 +319,7 @@ class Forwarder(threading.Thread):
                 length = struct.unpack("!H", firstbytes[3:5])[0]
                 tls_client_hello = sock.recv(5+length, socket.MSG_PEEK)
                 self.sni = get_sni(tls_client_hello)
-                print('SNI = ' + self.sni)
+                #print('SNI = ' + self.sni)
                 log.info("[%s] SNI: %s" % (self.id, self.sni))
             return result
         except ValueError:
@@ -359,7 +360,7 @@ class Forwarder(threading.Thread):
             #certfile, keyfile = self.fallback_cert()
             context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         except ssl.SSLError as e:
-            print('exception = ' + e)
+            #print('exception = ' + e)
             certfile, keyfile = self.fallback_cert()
             context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         return context.wrap_socket(conn,
@@ -385,16 +386,26 @@ class Forwarder(threading.Thread):
             log.error("[%s] CA not yet implemented" % self.id)
             #  cmd = [CLONE_CERT, peer, CA_key]  # TODO
         else:
-            cmd = [CLONE_CERT, '--reuse-keys', peer]
+            log.info(f'peer = {peer}')
+            #cmd = ['sudo', CLONE_CERT, '--reuse-keys', '--keep-issuer-name', '--keep-serial', peer]
+            #cmd = ['sudo', CLONE_CERT, '--reuse-keys', peer]
+            #cmd = ['sudo', CLONE_CERT, '--reuse-keys', '--keep-issuer-name', '--keep-serial', '--cert=', '/home/vm2p/Desktop/cert.crt', '--key=', '/home/vm2p/Desktop/CAPrivate.key', peer]
+            cmd = ['sudo', CLONE_CERT, '--reuse-keys', '--cert=', 'tlseraser-venv/lib/python3.14/site-packages/tlseraser-0.0.4-py3.14.egg/tlseraser/cert.pem', '--key=', 'tlseraser-venv/lib/python3.14/site-packages/tlseraser-0.0.4-py3.14.egg/tlseraser/key.pem', peer]
         try:
             fake_cert = subprocess.check_output(cmd,
                                                 stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             log.error("[%s] %s - %s" % (self.id, str(e), e.stdout.decode()))
             return None, None
-        result = fake_cert.decode().split('\n')[:2]
+        print('fake_cert = ' + str(fake_cert.decode()))
+        len_decode = len(fake_cert.decode().split('\n'))
+        #result = [fake_cert.decode().split('\n')[len_decode - 3], fake_cert.decode().split('\n')[len_decode - 5]]
+        result = fake_cert.decode().split('\n')[-3:][:2]
+        #result = '/tmp/localhost@104.154.89.105:1012_0.key', '/tmp/localhost@104.154.89.105:1012_0.cert'
+        print('result = ' + str(result))
         if not (os.path.isfile(result[0]) and os.path.isfile(result[1])):
             log.error("clone-cert.sh failed")
+            #return '/tmp/localhost@104.154.89.105:1012_0.key', '/tmp/localhost@104.154.89.105:1012_0.cert'
             return None, None
         return result
 
@@ -413,9 +424,10 @@ class Forwarder(threading.Thread):
             return None, None
         key_filename = cert_filename + '.key'
         cert_filename = cert_filename + '.cert'
-        if os.path.exists(cert_filename) and os.path.exists(key_filename):
-            log.debug("[%s] Get cached certificate for %s" % (self.id, peer))
-            return key_filename, cert_filename
+        # if os.path.exists(cert_filename) and os.path.exists(key_filename):
+        #     log.debug("[%s] Get cached certificate for %s" % (self.id, peer))
+        #     log.debug(f'\n\tCertificate file: {cert_filename}\n\tKey file: {key_filename}')
+        #     return key_filename, cert_filename
         return None, None
 
     def tlsify_client(self, conn):
@@ -438,11 +450,12 @@ class Forwarder(threading.Thread):
                     select.select([s], [], [])
                 elif err.args[0] == ssl.SSL_ERROR_WANT_WRITE:
                     select.select([], [s], [])
-                elif err.reason in [
-                    "TLSV1_ALERT_UNKNOWN_CA",
-                    "SSLV3_ALERT_BAD_CERTIFICATE",
-                ]:
-                    log.error("[%s] Client does not trust our cert" %
+                elif err.reason == "TLSV1_ALERT_UNKNOWN_CA":
+                    log.error("[%s] Client does not trust our cert (unknown CA)" %
+                              self.id)
+                    return False
+                elif err.reason == "SSLV3_ALERT_BAD_CERTIFICATE":
+                    log.error("[%s] Client does not trust our cert (bad certificate)" %
                               self.id)
                     return False
                 else:

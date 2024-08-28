@@ -25,6 +25,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/vm2p/Desktop/openssl/build/lib
+
 set -e
 
 DIR="/tmp"
@@ -56,13 +58,21 @@ Optional parameters:
 
     -c=<CERT>, --cert=<CERT>:
         The path to a certificate in PEM format with which to sign the host
-        certificate. The result will then not be cloned (i.e. seem fields
+        certificate. The result will then not be cloned (i.e. some fields
         will be different, in particular the issuer), but it will be a valid
         certificate which will be trusted by the victim if they trust
         <CERT>. You must supply a matching <KEY>.
 
     -k=<KEY>, --key=<KEY>:
         The path to a key in PEM format matching <CERT>
+
+    --keep-issuer-name:
+        Does not alter the issuer name, which is done otherwise to
+        trick browsers.
+
+    --keep-serial:
+        Does not alter the serial number, which is done otherwise to
+        trick browsers.
 
     --debug:
         Print debug messages
@@ -73,14 +83,22 @@ Optional parameters:
 EOF
 }
 
-if [ "$1" = "" ] ; then
-    usage
+function die () {
+    echo "$1" >&2
     exit 1
-fi
+}
+
+function debug () {
+    if [[ $DEBUG = true ]] ; then
+        echo "$1" >&2
+    fi
+}
 
 ISSUER_CERT=""
 ISSUER_KEY=""
 REUSE_KEYS=false
+KEEP_ISSUER_NAME=false
+KEEP_SERIAL=false
 for i in "$@" ; do
     case $i in
             -d=*|--directory=*)
@@ -97,6 +115,14 @@ for i in "$@" ; do
         ;;
             -r|--reuse-keys)
             REUSE_KEYS=true
+            shift # past argument=value
+        ;;
+            --keep-issuer-name)
+            KEEP_ISSUER_NAME=true
+            shift # past argument=value
+        ;;
+            --keep-serial)
+            KEEP_SERIAL=true
             shift # past argument=value
         ;;
             --debug)
@@ -117,6 +143,11 @@ for i in "$@" ; do
         ;;
     esac
 done
+
+if [[ "$1" = "" ]] ; then
+    usage
+    exit 1
+fi
 
 # set some variables
 HOST="$1"
@@ -143,24 +174,16 @@ set -u
 if [[ -f "$HOST" ]] ; then
     CERTNAME="$(basename "$HOST")"
 else
+    if [[ "$HOST" != *:* ]]; then
+        die "Specifying a port is mandatory"
+    fi
     CERTNAME="$HOST"
     SNI="${HOST%%@*}"
-    if [ ! $SNI = $HOST ] ; then
+    if [[ ! "$SNI" = "$HOST" ]] ; then
         HOST="${HOST##*@}"
     fi
 fi
 rm -f "$DIR/${CERTNAME}_"*
-
-function die () {
-    echo "$1" >&2
-    exit 1
-}
-
-function debug () {
-    if [ $DEBUG = true ] ; then
-        echo "$1" >&2
-    fi
-}
 
 function generate_rsa_key () {
     # create new RSA private/public key pair (re-use private key if applicable)
@@ -193,7 +216,7 @@ function generate_ec_key () {
         cp "$DIR/EC" "$MY_PRIV_KEY"
     else
         debug "Generating EC key"
-        /home/vm2p/Desktop/openssl/build/bin/openssl ecparam -name $EC_PARAM_NAME -genkey -out "$MY_PRIV_KEY" 2> /dev/null
+        /home/vm2p/Desktop/openssl/build/bin/openssl ecparam -name "$EC_PARAM_NAME" -genkey -out "$MY_PRIV_KEY" 2> /dev/null
         cp "$MY_PRIV_KEY" "$DIR/EC"
     fi
 
@@ -201,7 +224,7 @@ function generate_ec_key () {
         | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse \
         | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/')"
     NEW_MODULUS="$(/home/vm2p/Desktop/openssl/build/bin/openssl ec -in "$MY_PRIV_KEY" 2> /dev/null \
-        | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -offset $offset -noout \
+        | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -offset "$offset" -noout \
             -out >(dd bs=1 skip=2 2> /dev/null | hexlify))"
 
     printf "%s" "$NEW_MODULUS"
@@ -227,11 +250,10 @@ function parse_certs () {
             current_cert+="${current_cert:+$nl}$line"
 
             # ...and save it
-            if [ ! -z "$current_cert" ] ; then
+            if [[ -n "$current_cert" ]] ; then
                 printf "%s" "$current_cert" > "$DIR/${CERTNAME}_$counter"
             else
-                echo "Error while parsing certificate" >&2
-                exit 1
+                die "Error while parsing certificate"
             fi
             counter=$((counter+=1))
 
@@ -271,8 +293,7 @@ function oid() {
         ;;#sha256WithRSAEncryption
         "300d06092a864886f70d0101050500") echo sha1
         ;;#sha1WithRSAEncryption
-        *) echo "Unknow Hash Algorithm OID: $1" >&2
-            exit 1
+        *) die "Unknow Hash Algorithm OID: $1"
         ;;
     esac
 }
@@ -290,16 +311,16 @@ function asn1-bitstring(){
     # https://docs.microsoft.com/en-us/windows/desktop/seccertenroll/about-bit-string
     data=$1
     len=$((${#data}/2+1))
-    if [ $len -le 127 ] ; then
+    if [[ "$len" -le 127 ]] ; then
         len=$(printf "%02x" $len)
     else
-        if [ $len -lt 256 ] ; then
-            len=$(printf "81%02x" $len)
+        if [[ "$len" -lt 256 ]] ; then
+            len=$(printf "81%02x" "$len")
         else
-            len=$(printf "82%04x" $len)
+            len=$(printf "82%04x" "$len")
         fi
     fi
-    printf "03%s00%s" $len $data
+    printf "03%s00%s" "$len" "$data"
 }
 
 function extract-values () {
@@ -320,11 +341,11 @@ function extract-values () {
     fi
 
     SELF_SIGNED=false
-    [[ $ISSUER_DN = $SUBJECT_DN ]] && SELF_SIGNED=true
+    [[ $ISSUER_DN = "$SUBJECT_DN" ]] && SELF_SIGNED=true
     debug "self-signed: $SELF_SIGNED"
 
     SERIAL="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -noout -serial \
-        | sed 's/serial=//g' | tr '[A-F]' '[a-f]')"
+        | sed 's/serial=//g' | tr 'A-F' 'a-f')"
 
     AUTH_KEY_IDENTIFIER="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         | grep -A1 ":X509v3 Authority Key Identifier" | tail -n1 \
@@ -336,8 +357,8 @@ function extract-values () {
 function create-fake-CA () {
     /home/vm2p/Desktop/openssl/build/bin/openssl req -x509 -new -nodes -days 1024 -sha256 \
         -subj "$NEW_ISSUER_DN" \
-        -config <(cat /home/vm2p/Desktop/openssl/build/ssl/openssl.cnf |sed "s/.*subjectKeyIdentifier.*=.*hash/subjectKeyIdentifier=$AUTH_KEY_IDENTIFIER/") \
-        $@ \
+        -config <(sed "s/.*subjectKeyIdentifier.*=.*hash/subjectKeyIdentifier=$AUTH_KEY_IDENTIFIER/" /home/vm2p/Desktop/openssl/build/ssl/openssl.cnf) \
+        "$@" \
         -out "$FAKE_ISSUER_CERT" 2> /dev/null
 }
 
@@ -348,9 +369,7 @@ function clone_cert () {
     # if it is not self-signed and we have no compromised CA, change the
     # issuer or no browser will allow an exception.
     # it needs to stay the same length though.
-    # also, the serial needs to be changed, because browsers keep track of
-    # that.
-    if [[ $SELF_SIGNED = false ]]; then
+    if [[ $SELF_SIGNED = false && $KEEP_ISSUER_NAME = false ]]; then
         if [[ $ISSUER =~ I ]] ; then
             NEW_ISSUER=$(printf "%s" "$ISSUER" | sed "s/I/l/")
         elif [[ $ISSUER =~ l ]] ; then
@@ -362,14 +381,21 @@ function clone_cert () {
         else
             NEW_ISSUER=$(printf "%s" "$ISSUER" | sed "s/.$/ /")
         fi
+    else
+        NEW_ISSUER=$ISSUER
+    fi
+
+    # if it is not self-signed, the serial needs to be changed, too
+    # because browsers keep track of that
+    if [[ $SELF_SIGNED = false && $KEEP_SERIAL = false ]]; then
         # avoid negative serial number
         # only change 16 hex digits in the middle
         NEW_SERIAL=$(/home/vm2p/Desktop/openssl/build/bin/openssl rand -hex 8)
         NEW_SERIAL=$(printf "%s" "$SERIAL" | sed "s/.\{16\}\(.\{4\}\)\$/$NEW_SERIAL\1/")
     else
-        NEW_ISSUER=$ISSUER
         NEW_SERIAL=$SERIAL
     fi
+
     ISSUER=$(printf "%s" "$ISSUER" | hexlify)
     NEW_ISSUER=$(printf "%s" "$NEW_ISSUER" | hexlify)
     NEW_ISSUER_DN="$(printf "%s" "$ISSUER_DN" | hexlify | sed "s/$ISSUER/$NEW_ISSUER/" | unhexlify)"
@@ -388,7 +414,7 @@ function clone_cert () {
             | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse \
             | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/')"
         OLD_MODULUS="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -pubkey -noout 2> /dev/null \
-            | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -offset $offset -noout \
+            | /home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -offset "$offset" -noout \
                 -out >(dd bs=1 skip=2 2> /dev/null | hexlify))"
         EC_OID="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -text -noout \
             | grep "ASN1 OID: " | sed 's/.*: //')"
@@ -423,19 +449,24 @@ function clone_cert () {
         fi
     fi
 
-    if [ ! -z "$ISSUER_CERT" -a ! -z "$ISSUER_KEY" ] ; then
+    if [[ -n "$ISSUER_CERT" && -n "$ISSUER_KEY" ]] ; then
         # sign it regularly with given cert
         FAKE_ISSUER_KEY="$ISSUER_KEY"
         FAKE_ISSUER_CERT="$ISSUER_CERT"
+        ISSUER_KEY_IDENTIFIER="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$ISSUER_CERT" -ext subjectKeyIdentifier -noout \
+            | sed -ne '2s/[ :]//gp' | tr 'A-F' 'a-f')"
+        AUTH_KEY_IDENTIFIER="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -ext authorityKeyIdentifier -noout \
+            | sed -ne '2s/[ :]\|keyid//gp' | tr 'A-F' 'a-f')"
         /home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -outform DER | hexlify \
             | sed "s/$OLD_MODULUS/$NEW_MODULUS/" \
+            | sed "s/$AUTH_KEY_IDENTIFIER/$ISSUER_KEY_IDENTIFIER/" \
             | unhexlify \
             | /home/vm2p/Desktop/openssl/build/bin/openssl x509 -days 356 -inform DER -CAkey "$ISSUER_KEY" \
                 -CA "$ISSUER_CERT" -CAcreateserial \
                 -out "$CLONED_CERT"  2> /dev/null
         return-result
     else
-        if [ ! -z "$ISSUER_CERT" -o ! -z "$ISSUER_KEY" ] ; then
+        if [[ -n "$ISSUER_CERT" || -n "$ISSUER_KEY" ]] ; then
             die "If you provide one of <KEY> or <CERT>, you must also provide the other"
         fi
     fi
@@ -445,11 +476,11 @@ function clone_cert () {
     offset="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" | grep SEQUENCE \
         | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/' | head -n1)"
     SIGNING_ALGO="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
-        -strparse $offset -noout -out >(hexlify))"
+        -strparse "$offset" -noout -out >(hexlify))"
     offset="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         | tail -n1 |sed 's/ \+\([0-9]\+\):.*/\1/' | head -n1)"
     OLD_SIGNATURE="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
-        -strparse $offset -noout -out >(hexlify))"
+        -strparse "$offset" -noout -out >(hexlify))"
     OLD_TBS_CERTIFICATE="$(/home/vm2p/Desktop/openssl/build/bin/openssl asn1parse -in "$CERT" \
         -strparse 4 -noout -out >(hexlify))"
 
@@ -461,12 +492,12 @@ function clone_cert () {
 
     digest="$(oid "$SIGNING_ALGO")"
     NEW_SIGNATURE="$(printf "%s" "$NEW_TBS_CERTIFICATE" | unhexlify \
-        | /home/vm2p/Desktop/openssl/build/bin/openssl $digest -sign "$FAKE_ISSUER_KEY" \
+        | /home/vm2p/Desktop/openssl/build/bin/openssl "$digest" -sign "$FAKE_ISSUER_KEY" \
         | hexlify)"
 
     # replace signature, compute new asn1 length
-    OLD_ASN1_SIG=$(asn1-bitstring $OLD_SIGNATURE)
-    NEW_ASN1_SIG=$(asn1-bitstring $NEW_SIGNATURE)
+    OLD_ASN1_SIG=$(asn1-bitstring "$OLD_SIGNATURE")
+    NEW_ASN1_SIG=$(asn1-bitstring "$NEW_SIGNATURE")
 
     OLD_CERT_LENGTH="$(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CERT" -outform der \
         | dd bs=2 skip=1 count=1 2> /dev/null | hexlify)"
@@ -486,11 +517,10 @@ function clone_cert () {
         | unhexlify \
         | /home/vm2p/Desktop/openssl/build/bin/openssl x509 -inform DER -outform PEM > "$CLONED_CERT"
 
-    if [ ! -s "$CLONED_CERT" ] ; then
-        echo "Cloning failed" >&2
+    if [[ ! -s "$CLONED_CERT" ]] ; then
         rm "$CLONED_CERT"
         rm "$CLONED_KEY"
-        exit 1
+        die "Cloning failed"
     fi
     return-result
 }
@@ -505,16 +535,18 @@ function return-result () {
 function sanity-check () {
     # check whether the key pair matches, and whether the cert validates
     debug "$(diff \
-        <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -noout -text -in $CLONED_CERT) \
-        <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -noout -text -in $CERT))"
+        <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -noout -text -in "$CLONED_CERT") \
+        <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -noout -text -in "$CERT"))"
     diff -q <(/home/vm2p/Desktop/openssl/build/bin/openssl x509 -in "$CLONED_CERT" -pubkey -noout 2> /dev/null ) \
         <(/home/vm2p/Desktop/openssl/build/bin/openssl $SCHEME -in "$CLONED_KEY" -pubout 2> /dev/null) \
         || ( echo Key mismatch, probably due to a bug >&2; return 1 )
+    if [[ $SELF_SIGNED = true ]] ; then return 0 ; fi
     /home/vm2p/Desktop/openssl/build/bin/openssl verify -CAfile "$FAKE_ISSUER_CERT" "$CLONED_CERT" > /dev/null \
         || ( echo Verification failed, probably due to a bug >&2; return 1 )
 }
 
 function main () {
+    
     if [[ -f "$HOST" ]] ; then
         clone_cert "$HOST"
     else
