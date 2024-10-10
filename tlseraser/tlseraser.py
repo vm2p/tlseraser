@@ -331,6 +331,10 @@ class Forwarder(threading.Thread):
         log.debug("[%s] Wrapping connection in TLS" % self.id)
         s0 = self.sockets[0]
         s5 = self.sockets[5]
+
+        log.info(f's0 data = {s0}')
+        log.info(f's5 data = {s5}')
+
         self.sockets[0] = self.tlsify_server(self.sockets[0])
         self.sockets[5] = self.tlsify_client(self.sockets[5])
         if not self.do_tls_handshake(self.sockets[5]):
