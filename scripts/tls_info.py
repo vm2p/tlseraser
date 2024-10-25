@@ -71,6 +71,27 @@ def check_tls(target_host: str, target_port: int) -> str:
     return tls_version, cert_info
 
 
+def check_tls_v2(target_host: str, target_port: int) -> str:
+    """Modifications done to work with IP addresses"""
+
+    tls_version = ""
+    cert_info = ""
+    context = ssl.create_default_context()
+
+    # context.check_hostname = False
+    # context.verify_mode = ssl.CERT_NONE
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((target_host, target_port))
+        with context.wrap_socket(sock, server_hostname=target_host) as ssock:
+            tls_version = ssock.version()
+            cert_info = ssock.getpeercert()
+    
+    sock.close()
+
+    return tls_version, cert_info
+
+
 def main():
     start_time = time.time()
     config = parse_arguments()
@@ -78,7 +99,7 @@ def main():
     if config.url != "":
         log.info(f"Assessing: {config.url}")
 
-        tls_ver, ssl_cert_data = check_tls(target_host=config.url, target_port=config.port)
+        tls_ver, ssl_cert_data = check_tls_v2(target_host=config.url, target_port=config.port)
         print(f"TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
         print(f"Certificate details:")
         print(ssl_cert_data)
