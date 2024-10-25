@@ -1,4 +1,23 @@
-"""Extract TLS info from a given Website URL"""
+"""Extract TLS info from a given Website URL
+
+Sample run:
+  python scripts/tls_info.py -u sri.com -p 443
+
+Returns:
+    TLS Version for sri.com using port: 443 is: TLSv1.2
+    Certificate details:
+    {
+        'subject': ((('commonName', 'sri.com'),),),
+        'issuer': ((('countryName', 'US'),), (('organizationName', "Let's Encrypt"),), (('commonName', 'R11'),)),
+        'version': 3,
+        'serialNumber': '041C634574298E9DA79BABE1146D27212AB2',
+        'notBefore': 'Sep 22 08:23:21 2024 GMT',
+        'notAfter': 'Dec 21 08:23:20 2024 GMT',
+        'subjectAltName': (('DNS', 'sri.com'),),
+        'OCSP': ('http://r11.o.lencr.org',),
+        'caIssuers': ('http://r11.i.lencr.org/',)
+    }
+"""
 
 from __future__ import print_function
 import os
