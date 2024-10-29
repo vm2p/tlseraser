@@ -94,18 +94,20 @@ def main():
 
         # start Wireshark instance listening on a desired interface
         # todo: add interface
-        os.system("wireshark")
+        # os.system("wireshark")
+        os.system("open -a wireshark.app -n")
 
         # todo: run tlseraser from the python script (note: consider running in a new terminal instance)
         # open -a iTerm.app -n --args 'pwd'
         os.system("open -a iTerm.app -n")
-        os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")
+        # os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")
 
         # add a time delay to accommodate for changes
         time.sleep(3.0)
 
         # todo: validate the TLS version again
-        tls_ver = check_tls(target_host="https://localhost", target_port=1234)
+        # tls_ver = check_tls(target_host="https://localhost", target_port=1234)
+        tls_ver = check_tls(target_host=config.url, target_port=config.port)
         if tls_ver in bad_tls:
             print(f":thumbs_down: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
         else:
