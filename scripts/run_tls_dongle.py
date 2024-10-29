@@ -44,7 +44,7 @@ def create_header(title, subtitle=""):
     """Creates a stylized program header using Rich library.
        BH note: AI inspired!
     """
-    
+
     header = Panel(
         f"[bold green]{title}[/]\n[italic]{subtitle}[/]",
         title_align="center",
@@ -91,6 +91,14 @@ def main():
             print(f":thumbs_down: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
         else:
             print(f":thumbs_up: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
+
+        # todo: start Wireshark instance listening on a desired port
+
+        # todo: run tlseraser from the python script (note: consider running in a new terminal instance)
+
+        # add a time delay to accommodate for changes
+
+        # todo: validate the TLS version again
 
     else:
         log.error(f"Please provide a correct service path!")
