@@ -97,6 +97,9 @@ def main():
         os.system("wireshark")
 
         # todo: run tlseraser from the python script (note: consider running in a new terminal instance)
+        # open -a iTerm.app -n --args 'pwd'
+        os.system("open -a iTerm.app -n")
+        os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")
 
         # add a time delay to accommodate for changes
         time.sleep(3.0)
