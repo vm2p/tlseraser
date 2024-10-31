@@ -97,16 +97,16 @@ def main():
     if config.url != "":
         create_header("CAC-H: Computer Aided Cryptography for Healthcare", "TLS Proxy Demonstration")
 
-        with console.status(f"Assessing: {config.url}\n" , spinner="earth"):
-            time.sleep(2.0)
+        with console.status(f"Assessing: {config.url}\n" , spinner="earth"):            
             # check the target service for TLS version
             tls_ver = check_tls(target_host=config.url, target_port=config.port)
+            time.sleep(2.0)
 
         if tls_ver in bad_tls:
             print(f":thumbs_down: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
 
             # get confirmation to proceed with TLS Proxy deployment
-            answer = Prompt.ask("Deploy TLS Proxy?", choices=["y", "n"], default="y")
+            answer = ask_user(input_prompt="Deploy TLS Proxy?")
 
             if answer == "y":
                 if 'macos' in os_platform:
@@ -118,11 +118,21 @@ def main():
                     os.system("open -a wireshark.app -n")
 
                     # todo: open a new terminal window and run the modified TLSEraser from it
+                    log.info(f"Deploying TLS Proxy...")
                     os.system("open -a iTerm.app -n")
                     # os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")
                 else:
                     # running on Linux (default)
                     log.info(f"Running on Linux")
+
+                    # start wireshark instance listening on a desired interface
+                    log.info(f"Initiating Wireshark instance...")
+                    os.system("wireshark")
+
+                    # todo: open a new terminal window and run the modified TLSEraser from it
+                    log.info(f"Deploying TLS Proxy...")
+                    os.system("open -a iTerm.app -n")
+                    # os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")                    
 
                 # validate TLS use after proxy deployment
                 tls_ver = check_tls(target_host='localhost', target_port=1234)
@@ -133,23 +143,7 @@ def main():
             else:
                 print(f"Thank you for using CAC-H!")            
         else:
-            print(f":thumbs_up: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
-
-
-
-        # # start Wireshark instance listening on a desired interface
-        # # todo: add interface
-        # # os.system("wireshark")
-        # os.system("open -a wireshark.app -n")
-
-        # # todo: run tlseraser from the python script (note: consider running in a new terminal instance)
-        # # open -a iTerm.app -n --args 'pwd'
-        # os.system("open -a iTerm.app -n")
-        # # os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")
-
-        # # add a time delay to accommodate for changes
-        # time.sleep(3.0)    
-
+            print(f":thumbs_up: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")  
     else:
         log.error(f"Please provide a correct service path!")
 
