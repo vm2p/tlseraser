@@ -126,12 +126,15 @@ def main():
                     log.info(f"Running on Linux")
 
                     # start wireshark instance listening on a desired interface
+                    # TODO: define the interface to listen to
+                    # TODO: consider moving it below the TLS proxy instance
+                    # TODO: check if sudo is required
                     log.info(f"Initiating Wireshark instance...")
-                    os.system("wireshark")
+                    os.system("wireshark -i eth0 -k")
 
                     # todo: open a new terminal window and run the modified TLSEraser from it
                     log.info(f"Deploying TLS Proxy...")
-                    os.system(f"gnome-terminal -- tlseraser-venv/bin/tlseraser --target {config.url}:443")      
+                    os.system(f"gnome-terminal -- sudo tlseraser-venv/bin/tlseraser --target {config.url}:443")      
 
                 # validate TLS use after proxy deployment
                 tls_ver = check_tls(target_host='localhost', target_port=1234)
