@@ -129,8 +129,8 @@ def main():
                     # TODO: define the interface to listen to
                     # TODO: consider moving it below the TLS proxy instance
                     # TODO: check if sudo is required
-                    log.info(f"Initiating Wireshark instance...")
-                    os.system("wireshark -i noTLS -k")
+                    # log.info(f"Initiating Wireshark instance...")
+                    # os.system("wireshark -i noTLS -k")
 
                     # todo: open a new terminal window and run the modified TLSEraser from it
                     log.info(f"Deploying TLS Proxy...")
