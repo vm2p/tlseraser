@@ -141,6 +141,7 @@ def main():
                     log.info(f"Deploying TLS Proxy...")
                     os.system(f"gnome-terminal --tab --title=CACHTLSProxy -- sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport} &")      
 
+                time.sleep(5.0)
                 # validate TLS use after proxy deployment
                 tls_ver = check_tls(target_host='localhost', target_port=config.lport)
                 if tls_ver in bad_tls:
