@@ -139,7 +139,7 @@ def main():
 
                     # todo: open a new terminal window and run the modified TLSEraser from it
                     log.info(f"Deploying TLS Proxy...")
-                    os.system(f"gnome-terminal --tab --title=CACHTLSProxy -- source tlseraser-venv/bin/activate; sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport}")      
+                    os.system(f"gnome-terminal --tab --title=CACHTLSProxy -- sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport}")      
 
                 # validate TLS use after proxy deployment
                 tls_ver = check_tls(target_host='localhost', target_port=1234)
