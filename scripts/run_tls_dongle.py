@@ -36,7 +36,12 @@ def parse_arguments():
     parser.add_argument("-p", "--port", 
                         type=int, 
                         default=443, 
-                        help="target port")    
+                        help="target port")  
+    
+    parser.add_argument("-l", "--lport", 
+                        type=int, 
+                        default=1234, 
+                        help="local port")        
 
     args = parser.parse_args()
     return args
@@ -134,7 +139,7 @@ def main():
 
                     # todo: open a new terminal window and run the modified TLSEraser from it
                     log.info(f"Deploying TLS Proxy...")
-                    os.system(f"gnome-terminal -- sudo source tlseraser-venv/bin/activate; tlseraser-venv/bin/tlseraser --target {config.url}:443")      
+                    os.system(f"gnome-terminal -- source tlseraser-venv/bin/activate; sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport}")      
 
                 # validate TLS use after proxy deployment
                 tls_ver = check_tls(target_host='localhost', target_port=1234)
