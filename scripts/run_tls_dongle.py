@@ -130,16 +130,15 @@ def main():
                     # running on Linux (default)
                     log.info(f"Running on Linux")
 
-                    # start wireshark instance listening on a desired interface
-                    # TODO: define the interface to listen to
-                    # TODO: consider moving it below the TLS proxy instance
-                    # TODO: check if sudo is required
-                    # log.info(f"Initiating Wireshark instance...")
-                    # os.system("wireshark -i noTLS -k")
-
                     # todo: open a new terminal window and run the modified TLSEraser from it
                     log.info(f"Deploying TLS Proxy...")
-                    os.system(f"gnome-terminal --tab --title=CACHTLSProxy -- sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport} &")      
+                    os.system(f"gnome-terminal --tab --title=CACH-TLSProxy -- sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport} &")  
+                    
+                    # start wireshark instance listening on a desired interface
+                    answer = ask_user(input_prompt="Do you want to monitor via Wireshark")
+                    if answer == "y":
+                        log.info(f"Initiating Wireshark instance...")
+                        os.system("gnome-terminal --title=Wireshark-Instance -- wireshark -i any -k")                        
 
                 time.sleep(5.0)
                 # validate TLS use after proxy deployment
