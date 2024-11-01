@@ -78,8 +78,9 @@ def check_tls_v2(target_host: str, target_port: int) -> str:
     cert_info = ""
     context = ssl.create_default_context()
 
-    # context.check_hostname = False
-    # context.verify_mode = ssl.CERT_NONE
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    # ssl.CERT_OPTIONAL
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((target_host, target_port))
