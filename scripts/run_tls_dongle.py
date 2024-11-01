@@ -102,55 +102,71 @@ def main():
     if config.url != "":
         create_header("CAC-H: Computer Aided Cryptography for Healthcare", "TLS Proxy Demonstration")
 
-        with console.status(f"Assessing: {config.url}\n" , spinner="earth"):            
-            # check the target service for TLS version
-            tls_ver = check_tls(target_host=config.url, target_port=config.port)
-            time.sleep(2.0)
+        exit = False
+        while (True):
 
-        if tls_ver in bad_tls:
-            print(f":thumbs_down: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
+            with console.status(f"Assessing: {config.url}\n" , spinner="earth"):            
+                # check the target service for TLS version
+                tls_ver = check_tls(target_host=config.url, target_port=config.port)
+                time.sleep(2.0)
 
-            # get confirmation to proceed with TLS Proxy deployment
-            answer = ask_user(input_prompt="Deploy TLS Proxy?")
+            if tls_ver in bad_tls:
+                print(f":thumbs_down: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")
+                print(f":x: Your connection to this website uses weak encryption and is not private. Other users can view your information or modify the website's behavior.")
 
-            if answer == "y":
-                if 'macos' in os_platform:
-                    # running on a macOS
-                    log.info(f"Running on a MacOS!")
-                    
-                    # start wireshark instance listening on a desired interface
-                    log.info(f"Initiating Wireshark instance...")
-                    os.system("open -a wireshark.app -n")
+                # get confirmation to proceed with TLS Proxy deployment
+                answer = ask_user(input_prompt="Deploy TLS Proxy?")
 
-                    # todo: open a new terminal window and run the modified TLSEraser from it
-                    log.info(f"Deploying TLS Proxy...")
-                    os.system("open -a iTerm.app -n")
-                    # os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")
-                else:
-                    # running on Linux (default)
-                    log.info(f"Running on Linux")
-
-                    # todo: open a new terminal window and run the modified TLSEraser from it
-                    log.info(f"Deploying TLS Proxy...")
-                    os.system(f"gnome-terminal --tab --title=CACH-TLSProxy -- sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport} &")  
-                    
-                    # start wireshark instance listening on a desired interface
-                    answer = ask_user(input_prompt="Do you want to monitor via Wireshark")
-                    if answer == "y":
+                if answer == "y":
+                    if 'macos' in os_platform:
+                        # running on a macOS
+                        log.info(f"Running on a MacOS!")
+                        
+                        # start wireshark instance listening on a desired interface
                         log.info(f"Initiating Wireshark instance...")
-                        os.system("gnome-terminal --title=Wireshark-Instance -- wireshark -i any -k")                        
+                        os.system("open -a wireshark.app -n")
 
-                time.sleep(5.0)
-                # validate TLS use after proxy deployment
-                tls_ver = check_tls(target_host='localhost', target_port=config.lport)
-                if tls_ver in bad_tls:
-                    print(f":thumbs_down: Failed to upgrade! TLS Version is: {tls_ver}")
+                        # todo: open a new terminal window and run the modified TLSEraser from it
+                        log.info(f"Deploying TLS Proxy...")
+                        os.system("open -a iTerm.app -n")
+                        # os.system(f"tlseraser-venv/bin/tlseraser --target {config.url}:443")
+                    else:
+                        # running on Linux (default)
+                        log.info(f"Running on Linux")
+
+                        # todo: open a new terminal window and run the modified TLSEraser from it
+                        log.info(f"Deploying TLS Proxy...")
+                        os.system(f"gnome-terminal --tab --title=CACH-TLSProxy -- sudo tlseraser-venv/bin/tlseraser --target {config.url}:{config.port} -p {config.lport} &")  
+                        
+                        # start wireshark instance listening on a desired interface
+                        answer = ask_user(input_prompt="Do you want to monitor via Wireshark")
+                        if answer == "y":
+                            log.info(f"Initiating Wireshark instance...")
+                            os.system("gnome-terminal --tab --title=Wireshark-Instance -- sudo wireshark -i any -k")                        
+
+                    time.sleep(5.0)
+                    # validate TLS use after proxy deployment
+                    answer = ask_user(input_prompt="Re-assess TLS version?")
+                    if answer == "y":
+                        tls_ver = check_tls(target_host='localhost', target_port=config.lport)
+                        if tls_ver in bad_tls:
+                            print(f":thumbs_down: Failed to upgrade! TLS Version is: {tls_ver}")
+                        else:
+                            print(f":thumbs_up: Success! TLS Version is: {tls_ver}")
+                            print(f":white_check_mark: The website you are viewing was encrypted before being transmited over the Internet.")  
+
+                    answer = ask_user(input_prompt="End CACH-TLSProxy?")
+                    if answer == "y":
+                        os.system(f"pkill -P $$ --signal 9") 
+                        break
                 else:
-                    print(f":thumbs_up: Success! TLS Version is: {tls_ver}")      
+                    print(f"Thank you for using CAC-H!")
+                    os.system(f"pkill -P $$ --signal 9") 
+                    break
             else:
-                print(f"Thank you for using CAC-H!")            
-        else:
-            print(f":thumbs_up: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")  
+                print(f":thumbs_up: TLS Version for {config.url} using port: {config.port} is: {tls_ver}")  
+                print(f":white_check_mark: The website you are viewing was encrypted before being transmited over the Internet.")
+                break
     else:
         log.error(f"Please provide a correct service path!")
 
