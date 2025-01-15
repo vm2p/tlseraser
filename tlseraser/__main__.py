@@ -33,6 +33,7 @@ def main():
     log = logging.getLogger(__name__)
 
     try:
+        print(args.LPORT, args.LHOST, args.TARGET, args.NETNS_NAME,)
         TLSEraser(
             args.LPORT,
             args.LHOST,

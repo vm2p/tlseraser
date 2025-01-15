@@ -131,8 +131,8 @@ class Forwarder(threading.Thread):
             S6 = _open_connection(*orig_dest)
             self.sockets.append(S6)
         except Exception:
-            log.exception("[%s] Exception while connecting to original "
-                          "destination", self.id)
+            # log.exception("[%s] Exception while connecting to original "
+            #               "destination", self.id)
             for s in self.sockets:
                 s.close()
             self.active = False
@@ -320,7 +320,7 @@ class Forwarder(threading.Thread):
                 tls_client_hello = sock.recv(5+length, socket.MSG_PEEK)
                 self.sni = get_sni(tls_client_hello)
                 #print('SNI = ' + self.sni)
-                log.info("[%s] SNI: %s" % (self.id, self.sni))
+                # log.info("[%s] SNI: %s" % (self.id, self.sni))
             return result
         except ValueError:
             log.exception("[%s] Exception while looking for client hello" %
@@ -332,8 +332,8 @@ class Forwarder(threading.Thread):
         s0 = self.sockets[0]
         s5 = self.sockets[5]
 
-        log.info(f's0 data = {s0}')
-        log.info(f's5 data = {s5}')
+        # log.info(f's0 data = {s0}')
+        # log.info(f's5 data = {s5}')
 
         self.sockets[0] = self.tlsify_server(self.sockets[0])
         self.sockets[5] = self.tlsify_client(self.sockets[5])
@@ -390,7 +390,7 @@ class Forwarder(threading.Thread):
             log.error("[%s] CA not yet implemented" % self.id)
             #  cmd = [CLONE_CERT, peer, CA_key]  # TODO
         else:
-            log.info(f'peer = {peer}')
+            # log.info(f'peer = {peer}')
             #cmd = ['sudo', CLONE_CERT, '--reuse-keys', '--keep-issuer-name', '--keep-serial', peer]
             #cmd = ['sudo', CLONE_CERT, '--reuse-keys', peer]
             #cmd = ['sudo', CLONE_CERT, '--reuse-keys', '--keep-issuer-name', '--keep-serial', '--cert=', '/home/vm2p/Desktop/cert.crt', '--key=', '/home/vm2p/Desktop/CAPrivate.key', peer]
