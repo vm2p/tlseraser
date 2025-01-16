@@ -45,7 +45,9 @@ def main():
         for target in ts_split:
             port = get_port()
             log.info(f"Deploying TLS Proxy for {target}...")
-            os.system(f"gnome-terminal --title=CACH-TLSProxy-{target} -- sudo tlseraser-venv/bin/tlseraser --target {target} -p {port} &")  
+            #os.system(f"gnome-terminal --title=CACH-TLSProxy-{target} -- echo 'vpereira' | sudo -kS tlseraser-venv/bin/tlseraser --target {target} -p {port} &")
+            #os.system(f"echo 'vpereira' | sudo -kS gnome-terminal --title=CACH-TLSProxy-{target} -- tlseraser-venv/bin/tlseraser --target {target} -p {port}")
+            os.system(f"gnome-terminal --title=CACH-TLSProxy-{target} -- tlseraser-venv/bin/tlseraser --target {target} -p {port}")  
     except KeyboardInterrupt:
         print('\r', end='')  # prevent '^C' on console
         log.info('Caught Ctrl-C, exiting...')

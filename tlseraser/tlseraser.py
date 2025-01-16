@@ -395,6 +395,7 @@ class Forwarder(threading.Thread):
             #cmd = ['sudo', CLONE_CERT, '--reuse-keys', peer]
             #cmd = ['sudo', CLONE_CERT, '--reuse-keys', '--keep-issuer-name', '--keep-serial', '--cert=', '/home/vm2p/Desktop/cert.crt', '--key=', '/home/vm2p/Desktop/CAPrivate.key', peer]
             cmd = ['sudo', CLONE_CERT, '--reuse-keys', '--cert=', 'tlseraser-venv/lib/python3.14/site-packages/tlseraser-0.0.4-py3.14.egg/tlseraser/cert.pem', '--key=', 'tlseraser-venv/lib/python3.14/site-packages/tlseraser-0.0.4-py3.14.egg/tlseraser/key.pem', peer]
+            #cmd = [CLONE_CERT, '--reuse-keys', '--cert=', 'tlseraser-venv/lib/python3.14/site-packages/tlseraser-0.0.4-py3.14.egg/tlseraser/cert.pem', '--key=', 'tlseraser-venv/lib/python3.14/site-packages/tlseraser-0.0.4-py3.14.egg/tlseraser/key.pem', peer]
         try:
             fake_cert = subprocess.check_output(cmd,
                                                 stderr=subprocess.STDOUT)
